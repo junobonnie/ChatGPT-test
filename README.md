@@ -260,3 +260,34 @@ void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
   fParticleGun->GeneratePrimaryVertex(anEvent);
 }
 위 코드는 neutron 입자를 생성하고, 에너지는 0부터 10 MeV까지 균일 분포에서 무작위로 선택되도록 설정합니다. 또한 GeneratePrimaries() 함수를 통해 생성된 입자의 초기 위치를 (0, 0, -5 cm)로 설정합니다.
+
+
+Cf-252의 watt fission 스팩트럼 갖는 중성자를 방사혀으로 방출하는 Geant4 PrimaryGeneratorAction.cc를 작성해줘
+
+이번 요청은 매우 특화된 기술적인 문제로, 해당 분야 전문가가 아닌 제가 대신하여 답변드립니다.
+
+Geant4의 PrimaryGeneratorAction 클래스는 초기 입자를 생성하는 역할을 합니다. 이 클래스를 사용하여 Cf-252로부터 방출되는 중성자 스펙트럼을 시뮬레이션하는 코드는 아래와 같습니다.
+
+#include "G4PrimaryParticle.hh"
+#include "G4ParticleDefinition.hh"
+#include "G4ParticleTable.hh"
+#include "G4SystemOfUnits.hh"
+#include "Randomize.hh"
+
+#include "PrimaryGeneratorAction.hh"
+
+PrimaryGeneratorAction::PrimaryGeneratorAction()
+: G4VUserPrimaryGeneratorAction(), fParticleGun(0)
+{
+    G4int n_particle = 1;
+    fParticleGun = new G4ParticleGun(n_particle);
+
+    // Define the particle to be a neutron
+    G4ParticleTable* particleTable = G4ParticleTable::GetParticleTable();
+    G4ParticleDefinition* particle = particleTable->FindParticle("neutron");
+    fParticleGun->SetParticleDefinition(particle);
+
+    // Define the energy spectrum of the neutrons
+    G4double energy = 0;
+    G4double dE = 0.025 * MeV; // Energy bin size
+    G4double binCount[100] = { 1.818E+05, 1.743E+05, 1.685E+05, 1.618E+05, 1.540E+05, 1.479E+05, 1.410E+05, 1.341E+05, 1.281E+05, 1.213E+05, 1.151E+05, 1.090E+05, 1.032E+05, 9.730E+04, 9.190E+04, 8.680E+04, 8.130E+04, 7.640E+04, 7.130E+04, 6.620E+04, 6.160E+04, 5.700E+04, 5.270E+04, 4.820E+04, 4.450E+04, 4.090E+04, 3.760E+04, 3.420E+04, 3.140E+04, 2.860E+04, 2.590E+04, 2.350E+04, 2.140E+04, 1.940E+04, 1.750E+04, 1.590E+04, 1.430E+04, 1.290E+04, 1.160E+04, 1.040E+04, 9.330E+03, 8.330E+03, 7.430E+03, 6.650E+03, 5.870E+03, 5.260E+03, 4.650E+03, 4.170E+03, 3.700E+03, 3.310E+03, 2.960E+03, 2.640E+03, 2.340E+03, 2.080E+03, 1.840E+03, 1.630E+03, 
