@@ -413,3 +413,94 @@ plica re
 이어서 계속 작성해줘
 
 0.00225047, 0.00225584, 0.00226122, 0.00226659, 0.00227196, 0.00227733, 0.00228271, 0.00228808, 0.00229345, 0.00229883, 0.0023042, 0.00230957, 0.00231495, 0.00232032, 0.00232569, 0.00233106, 0.00233644, 0.00234181, 0.00234718, 0.00235256, 0.00235793, 0.00236331, 0.00236868, 0.00237405, 0.00237943, 0.0023848, 0.00239018, 0.00239555, 0.00240092, 0.0024063, 0.00241167, 0.00241705, 0.00242242, 0.0024278, 0.00243317, 0.00243855, 0.00244392, 0.0024493, 0.00245467, 0.00246005, 0.00246543, 0.0024708, 0.00247618, 0.00248155, 0.00248693, 0.00249231, 0.00249768, 0.00250306, 0.00250844, 0.00251381, 0.00251919, 0.00252457, 0.00252995, 0.00253532, 0.0025407, 0.00254608, 0.00255146, 0.00255684, 0.00256222, 0.0025676, 0.00257298, 0.00257836, 0.00258374, 0.00258912, 0.0025945, 0.00259988, 0.00260526, 0.00261064, 0.00261602, 0.0026214, 0.00262678, 0.00263217, 0.00263755, 0.00264293, 0.00264831, 0.00265369, 0.00265908, 0.00266446, 0.00266984, 0.00267523, 0.00268061, 0.002686, 0.00269138, 0.00269677, 0.00270215, 0.00270754, 0.00271292, 0.00271831, 0.00272369, 0.00272908, 0.00273447, 0.00273985, 0.00274524, 0.00275063, 0.00275601, 0.0027614, 0.00276679, 0.00277218, 0.00277757, 0.00278295, 0.00278834, 0.00279373, 0.00279912, 0.00280451, 0.0028099, 0.00281529, 0.00282068, 0.00282607, 0.00283146, 0.00283685
+
+
+
+New chat
+
+
+plica re
+Geant4 DetectorConstruction.cc를 작성해줘. 단, Fe(78%), S(9%), B(13%)로 이뤄져있는 밀도가 7.19g/cm^3인 20cm×20cm×2cm 크기의 판이 중앙에 놓여져있어. 그리고 판의 얇은 쪽에서 20cm 떨어진곳에 반지름이 5cm인 Detector가 있어. 이 Detector는 중성자의 플럭스를 측정해.
+Geant4의 DetectorConstruction 클래스를 사용하여 Fe, S, B로 이루어진 밀도가 7.19g/cm^3이고 20cm×20cm×2cm 크기의 판과 5cm 반지름의 중성자 검출기(Detector)를 시뮬레이션하는 코드를 작성할 수 있습니다.
+
+먼저, DetectorConstruction 클래스를 헤더 파일에 정의하고, 필요한 헤더 파일을 include합니다. 그리고 DetectorConstruction 클래스에서 사용될 변수를 선언합니다.
+
+cpp
+Copy code
+// DetectorConstruction.hh
+#ifndef DETECTOR_CONSTRUCTION_HH
+#define DETECTOR_CONSTRUCTION_HH
+
+#include "G4VUserDetectorConstruction.hh"
+#include "globals.hh"
+
+class G4VPhysicalVolume;
+class G4LogicalVolume;
+class G4Material;
+
+class DetectorConstruction : public G4VUserDetectorConstruction
+{
+public:
+  DetectorConstruction();
+  virtual ~DetectorConstruction();
+
+  virtual G4VPhysicalVolume* Construct();
+
+private:
+  G4Material* fWorldMaterial;
+  G4Material* fTargetMaterial;
+  G4Material* fDetectorMaterial;
+
+  G4double fWorldSizeX;
+  G4double fWorldSizeY;
+  G4double fWorldSizeZ;
+
+  G4double fTargetSizeX;
+  G4double fTargetSizeY;
+  G4double fTargetSizeZ;
+
+  G4double fDetectorSize;
+};
+#endif
+다음으로, DetectorConstruction 클래스의 생성자와 소멸자를 구현합니다. 여기에서는 DetectorConstruction 클래스의 멤버 변수를 초기화합니다.
+
+cpp
+Copy code
+// DetectorConstruction.cc
+#include "DetectorConstruction.hh"
+#include "G4Box.hh"
+#include "G4LogicalVolume.hh"
+#include "G4NistManager.hh"
+#include "G4PVPlacement.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4VisAttributes.hh"
+
+DetectorConstruction::DetectorConstruction()
+: G4VUserDetectorConstruction(),
+  fWorldMaterial(nullptr), fTargetMaterial(nullptr), fDetectorMaterial(nullptr),
+  fWorldSizeX(100.0*cm), fWorldSizeY(100.0*cm), fWorldSizeZ(100.0*cm),
+  fTargetSizeX(20.0*cm), fTargetSizeY(20.0*cm), fTargetSizeZ(2.0*cm),
+  fDetectorSize(5.0*cm)
+{
+}
+
+DetectorConstruction::~DetectorConstruction()
+{
+}
+다음으로, G4VUserDetectorConstruction 클래스에서 상속받은 Construct() 메소드를 구현합니다. 이 메소드에서는 Geant4의 Geometry를 정의하고 생성합니다.
+
+cpp
+Copy code
+// DetectorConstruction.cc
+G4VPhysicalVolume* DetectorConstruction::Construct()
+{
+  // NIST material manager
+  G4NistManager* nist = G4NistManager::Instance();
+
+  // World volume
+  G4Box* worldS = new G4Box("World", fWorldSizeX/2, fWorldSizeY/2, fWorldSizeZ/2);
+  G4LogicalVolume* worldLV = new G4LogicalVolume(worldS, fWorldMaterial, "World");
+  G4VPhysicalVolume* worldPV = new G4PVPlacement(0, G4ThreeVector(), worldLV, "World", nullptr, false, 0);
+
+  // Target volume
+  G4Box*
