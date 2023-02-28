@@ -1,0 +1,159 @@
+Geant4 DetectorConstruction.
+
+
+plica re
+다음 조건을 만족하는 Geant4 DetectorConstruction.cc를 작성해줘. 
+
+Fe, S, B가 78:9:13의 개수비로 이뤄져있는 밀도가 7.19g/cm^3인 20cm×20cm×2cm 크기의 판이 중앙에 놓여져있어. 
+
+그리고 판의 얇은 쪽에서 20cm 떨어진곳에 진공으로 된 반지름이 5cm인 Sphere 형태의 Detector가 있어.
+ 
+이 Detector는 G4PSPassageCellFlux를 사용해서 중성자의 플럭스를 측정해.
+
+다른 글이나 설명없이 코드만 30줄까지 출력해줘.
+
+cpp
+Copy code
+#include "G4Box.hh"
+#include "G4LogicalVolume.hh"
+#include "G4NistManager.hh"
+#include "G4PVPlacement.hh"
+#include "G4RotationMatrix.hh"
+#include "G4SDManager.hh"
+#include "G4Sphere.hh"
+#include "G4SystemOfUnits.hh"
+#include "G4VisAttributes.hh"
+
+#include "DetectorConstruction.hh"
+#include "NeutronSD.hh"
+
+DetectorConstruction::DetectorConstruction()
+: G4VUserDetectorConstruction()
+{ }
+
+DetectorConstruction::~DetectorConstruction()
+{ }
+
+G4VPhysicalVolume* DetectorConstruction::Construct()
+{
+  // Define materials
+  G4NistManager* nist = G4NistManager::Instance();
+  G4Material* Fe = nist->FindOrBuildMaterial("G4_Fe");
+  G4Material* S = nist->FindOrBuildMaterial("G4_S");
+  G4Material* B = nist->FindOrBuildMaterial("G4_B");
+
+  // Define dimensions of the plate
+  G4double plateX = 20*cm;
+  G4double plateY = 20*cm;
+  G4double plateZ = 2*cm;
+
+  // Create box shape for the plate
+  G4Box* plateBox = new G4Box("plateBox", plateX/2, plateY/2, plateZ/2);
+
+  // Create logical volume for the plate and add the materials
+  G4LogicalVolume* plateLV = new G4LogicalVolume(plateBox, Fe, "plateLV");
+  plateLV->SetMaterialComposition(new G4ElementRatio(Fe, 78), new G4ElementRatio(S, 9), new G4ElementRatio(B, 13));
+  
+  // Define dimensions of the detector
+  G4double detectorRadius = 5*cm;
+  G4double detectorThickness = 1*mm;
+
+  // Create sphere shape for the detector
+  G4Sphere* detectorSphere = new G4Sphere("detectorSphere", 0, detectorRadius, 0, 360*deg, 0, 180*deg);
+
+  // Create logical volume for the detector and set its material
+  G4LogicalVolume* detectorLV = new G4LogicalVolume(detectorSphere, nist->FindOrBuildMaterial("G4_Galactic"), "detectorLV");
+
+  // Create a sensitive detector for neutrons
+  G4String neutronSDname = "neutronSD";
+  NeutronSD* neutronSD = new NeutronSD(neutronSDname, "neutronHitsCollection");
+  G4SDManager::GetSDMpointer()->AddNewDetector(neutronSD);
+
+  // Assign the sensitive detector to the logical volume of the detector
+  detectorLV->SetSensitiveDetector(neutronSD);
+
+  // Set visualization attributes for the detector
+  G4VisAttributes* visAttr = new G4VisAttributes(G4Colour::Yellow());
+  visAttr->SetVisibility(true);
+  detectorLV->SetVisAttributes(visAttr);
+
+  // Place the plate in the center of the world
+  G4VPhysicalVolume* platePV = new G4PVPlacement(0, G4ThreeVector(), plateLV, "platePV", 0, false, 0);
+
+  // Place the detector on the thin side of the plate, 20cm away from it
+  G4RotationMatrix* detectorRot = new G4RotationMatrix();
+  detectorRot->rotateX(90*deg);
+  G4ThreeVector detectorPos(0, 0, plateZ/2 + detectorRadius + 20*cm + detectorThickness/2);
+  G4VPhysicalVolume* detectorPV = new G
+
+
+
+plica re
+나머지 코드를 마저 작성해줘
+
+4PVPlacement(detectorRot, detectorPos, detectorLV, "detectorPV", plateLV, false, 0);
+
+// Return the physical volume of the plate
+return platePV;
+}
+
+
+
+
+plica re
+중앙에 점으로 된 Cf-252에서 등방적으로 방출되는 중성자를 묘사하는 PrimaryGeneratorAction.cc를 작성해줘. 
+
+단, WattFissionSpectrum 공식을 사용해야해.
+
+WattFissionSpectrum 공식은 다음과 같아.
+f(E) = C*exp(-E/a)*sinh(sqrt(b*E))
+이때, Cf-252의 계수값은 C=1, a=1.18MeV, b=1.03419MeV^-1이야.
+
+cpp
+Copy code
+#include "PrimaryGeneratorAction.hh"
+#include "G4Event.hh"
+#include "G4GeneralParticleSource.hh"
+#include "G4ParticleTable.hh"
+#include "G4ParticleDefinition.hh"
+#include "Randomize.hh"
+
+PrimaryGeneratorAction::PrimaryGeneratorAction()
+: G4VUserPrimaryGeneratorAction(), fParticleGun(0)
+{
+  fParticleGun = new G4GeneralParticleSource();
+}
+
+PrimaryGeneratorAction::~PrimaryGeneratorAction()
+{
+  delete fParticleGun;
+}
+
+void PrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
+{
+  // Define the particle and its energy
+  G4ParticleTable* particleTable = G4ParticleTable::GetParticleTable();
+  G4ParticleDefinition* neutron = particleTable->FindParticle("neutron");
+  G4double energy = GenerateEnergy();
+
+  // Set the particle properties and direction
+  fParticleGun->SetParticleDefinition(neutron);
+  fParticleGun->SetParticleEnergy(energy);
+  fParticleGun->SetParticleMomentumDirection(G4ThreeVector(0., 0., 1.));
+
+  // Generate the primary particle and add it to the event
+  fParticleGun->GeneratePrimaryVertex(anEvent);
+}
+
+G4double PrimaryGeneratorAction::GenerateEnergy()
+{
+  // Generate neutron energy using Watt fission spectrum formula
+  G4double a = 1.18*MeV;
+  G4double b = 1.03419*MeV^-1;
+  G4double E;
+  do {
+    E = G4RandExponential::shoot(a);
+  } while (G4UniformRand() > (b/a)*sinh(sqrt(b*E)/a)/E);
+  
+  return E;
+}
