@@ -1,74 +1,64 @@
-#include "G4Box.hh"
-#include "G4LogicalVolume.hh"
+#include "DetectorConstruction.hh"
+#include "G4Material.hh"
 #include "G4NistManager.hh"
+#include "G4Box.hh"
+#include "G4Tubs.hh"
+#include "G4LogicalVolume.hh"
 #include "G4PVPlacement.hh"
 #include "G4RotationMatrix.hh"
 #include "G4SDManager.hh"
-#include "G4Sphere.hh"
-#include "G4SystemOfUnits.hh"
-#include "G4VisAttributes.hh"
-
-#include "DetectorConstruction.hh"
-#include "NeutronSD.hh"
+#include "G4VSensitiveDetector.hh"
+#include "G4PSPassageCellFlux.hh"
 
 DetectorConstruction::DetectorConstruction()
 : G4VUserDetectorConstruction()
-{ }
+{
+}
 
 DetectorConstruction::~DetectorConstruction()
-{ }
+{
+}
 
 G4VPhysicalVolume* DetectorConstruction::Construct()
 {
   // Define materials
-  G4NistManager* nist = G4NistManager::Instance();
-  G4Material* Fe = nist->FindOrBuildMaterial("G4_Fe");
-  G4Material* S = nist->FindOrBuildMaterial("G4_S");
-  G4Material* B = nist->FindOrBuildMaterial("G4_B");
+  G4NistManager* nistManager = G4NistManager::Instance();
+  G4Material* Fe = nistManager->FindOrBuildMaterial("G4_Fe");
+  G4Material* S = nistManager->FindOrBuildMaterial("G4_S");
+  G4Material* B = nistManager->FindOrBuildMaterial("G4_B");
+  G4Material* vacuum = nistManager->FindOrBuildMaterial("G4_Galactic");
 
-  // Define dimensions of the plate
-  G4double plateX = 20*cm;
-  G4double plateY = 20*cm;
-  G4double plateZ = 2*cm;
+  // Define dimensions
+  G4double plateThickness = 2.*cm;
+  G4double plateSizeX = 20.*cm;
+  G4double plateSizeY = 20.*cm;
+  G4double detectorRadius = 5.*cm;
+  G4double detectorDistance = 20.*cm;
 
-  // Create box shape for the plate
-  G4Box* plateBox = new G4Box("plateBox", plateX/2, plateY/2, plateZ/2);
+  // Define positions
+  G4ThreeVector platePos = G4ThreeVector(0., 0., 0.);
+  G4ThreeVector detectorPos = G4ThreeVector(0., 0., -detectorDistance);
 
-  // Create logical volume for the plate and add the materials
-  G4LogicalVolume* plateLV = new G4LogicalVolume(plateBox, Fe, "plateLV");
-  plateLV->SetMaterialComposition(new G4ElementRatio(Fe, 78), new G4ElementRatio(S, 9), new G4ElementRatio(B, 13));
-  
-  // Define dimensions of the detector
-  G4double detectorRadius = 5*cm;
-  G4double detectorThickness = 1*mm;
+  // Define shapes
+  G4Box* plateSolid = new G4Box("plateSolid", plateSizeX/2., plateSizeY/2., plateThickness/2.);
+  G4Tubs* detectorSolid = new G4Tubs("detectorSolid", 0., detectorRadius, detectorThickness/2., 0., 360.*deg);
 
-  // Create sphere shape for the detector
-  G4Sphere* detectorSphere = new G4Sphere("detectorSphere", 0, detectorRadius, 0, 360*deg, 0, 180*deg);
-
-  // Create logical volume for the detector and set its material
-  G4LogicalVolume* detectorLV = new G4LogicalVolume(detectorSphere, nist->FindOrBuildMaterial("G4_Galactic"), "detectorLV");
-
-  // Create a sensitive detector for neutrons
-  G4String neutronSDname = "neutronSD";
-  NeutronSD* neutronSD = new NeutronSD(neutronSDname, "neutronHitsCollection");
-  G4SDManager::GetSDMpointer()->AddNewDetector(neutronSD);
-
-  // Assign the sensitive detector to the logical volume of the detector
-  detectorLV->SetSensitiveDetector(neutronSD);
-
-  // Set visualization attributes for the detector
-  G4VisAttributes* visAttr = new G4VisAttributes(G4Colour::Yellow());
-  visAttr->SetVisibility(true);
-  detectorLV->SetVisAttributes(visAttr);
+  // Define logical volumes
+  G4LogicalVolume* plateLV = new G4LogicalVolume(plateSolid, Fe, "plateLV");
+  G4LogicalVolume* detectorLV = new G4LogicalVolume(detectorSolid, vacuum, "detectorLV");
 
   // Place the plate in the center of the world
-  G4VPhysicalVolume* platePV = new G4PVPlacement(0, G4ThreeVector(), plateLV, "platePV", 0, false, 0);
+  G4VPhysicalVolume* platePV = new G4PVPlacement(0, platePos, plateLV, "platePV", 0, false, 0);
 
-  // Place the detector on the thin side of the plate, 20cm away from it
+  // Place the detector above the plate
   G4RotationMatrix* detectorRot = new G4RotationMatrix();
-  detectorRot->rotateX(90*deg);
-  G4ThreeVector detectorPos(0, 0, plateZ/2 + detectorRadius + 20*cm + detectorThickness/2);
+  detectorRot->rotateX(90.*deg);
   G4VPhysicalVolume* detectorPV = new G4PVPlacement(detectorRot, detectorPos, detectorLV, "detectorPV", plateLV, false, 0);
+
+  // Set the detector as a sensitive detector and calculate the neutron flux
+  G4VSensitiveDetector* detectorSD = new G4PSPassageCellFlux("detectorSD", 0);
+  detectorLV->SetSensitiveDetector(detectorSD);
+  G4SDManager::GetSDMpointer()->AddNewDetector(detectorSD);
 
   // Return the physical volume of the plate
   return platePV;
